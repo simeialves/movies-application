@@ -2,8 +2,8 @@ const os = require("os");
 const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
-const { AMBIENTE, PORT } = require("./includes/Constants");
-const { populateDatabase, processCSV } = require("./config/db");
+const { AMBIENTE, PORT } = require("./src/includes/Constants");
+const { processCSV, populateDatabase } = require("./src/services/CSVService");
 
 const app = express();
 app.use(bodyParser.json({ limit: "2048mb" }));
@@ -26,15 +26,15 @@ app.use(cors("*"));
 
 //#region routes
 //Movies
-const moviesRoutes = require("./routes/moviesRoutes");
+const moviesRoutes = require("./src/routes/moviesRoutes");
 app.use("/api/movies", moviesRoutes);
 
 //Producers
-const producersRoutes = require("./routes/producersRoutes");
+const producersRoutes = require("./src/routes/producersRoutes");
 app.use("/api/producers", producersRoutes);
 
 //MoviesProducers
-const moviesProducersRoutes = require("./routes/moviesProducersRoutes");
+const moviesProducersRoutes = require("./src/routes/moviesProducersRoutes");
 app.use("/api/movies-producers", moviesProducersRoutes);
 
 //#endregion

@@ -1,7 +1,6 @@
 const request = require("supertest");
 const app = require("../server");
-
-const { processCSV, populateDatabase, db } = require("../config/db");
+const { processCSV, populateDatabase } = require("../src/services/CSVService");
 
 describe("Testes de Integração - Criar e Popular Banco de Dados a partir do CSV", () => {
   beforeAll(async () => {
