@@ -1,5 +1,5 @@
 const request = require("supertest");
-const app = require("../server");
+const app = require("../src/app");
 const { processCSV, populateDatabase } = require("../src/services/CSVService");
 
 describe("Testes de Integração - MoviesProducers", () => {
