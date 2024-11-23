@@ -1,9 +1,8 @@
-const { db } = require("../config/db");
+const ProducersService = require("../services/ProducersService");
 const {
   ERROR_CREATE_PRODUCER,
   ERROR_FETCH_PRODUCERS,
   ERROR_FETCH_PRODUCER,
-  ERROR_FETCH_PRODUCER_INTERVALS,
   ERROR_UPDATE_PRODUCER,
   ERROR_DELETE_PRODUCER,
   ERROR_INTERNAL_SERVER,
@@ -18,40 +17,22 @@ class ProducerController {
     const { name } = req.body;
 
     if (!name) {
-      const fields = [];
-      if (!name) fields.push("name");
-
       return res.status(400).json({
-        message: messageFieldsRequired(fields),
-      });
-    }
-
-    const producer = await new Promise((resolve, reject) => {
-      db.get("SELECT * FROM producers WHERE name = ?", [name], (err, row) => {
-        if (err) {
-          reject(err);
-        }
-        resolve(row);
-      });
-    });
-
-    if (producer) {
-      return res.status(400).json({
-        message: messageRegisterAlreadyExists("Producer", name),
+        message: messageFieldsRequired(["name"]),
       });
     }
 
     try {
-      db.run(`INSERT INTO producers (name) VALUES (?)`, [name], function (err) {
-        if (err) {
-          console.error(err);
-          res
-            .status(500)
-            .json({ error: ERROR_CREATE_PRODUCER, message: err.message });
-        } else {
-          res.status(201).json({ id: this.lastID });
-        }
-      });
+      const existingProducer = await ProducersService.getByName(name);
+
+      if (existingProducer) {
+        return res.status(400).json({
+          message: messageRegisterAlreadyExists("Producer", name),
+        });
+      }
+
+      const id = await ProducersService.create({ name });
+      res.status(201).json({ id });
     } catch (err) {
       console.error(err);
       res
@@ -64,16 +45,8 @@ class ProducerController {
   //#region READ
   static getAll = async (req, res) => {
     try {
-      db.all("SELECT * FROM producers", [], (err, rows) => {
-        if (err) {
-          res.status(500).json({
-            message: ERROR_FETCH_PRODUCERS,
-            error: err.message,
-          });
-        } else {
-          res.status(200).json(rows);
-        }
-      });
+      const producers = await ProducersService.getAll();
+      res.status(200).json(producers);
     } catch (err) {
       res.status(500).json({
         error: ERROR_FETCH_PRODUCERS,
@@ -85,23 +58,18 @@ class ProducerController {
   static getById = async (req, res) => {
     const { id } = req.params;
     try {
-      db.get("SELECT * FROM producers WHERE id = ?", [id], (err, row) => {
-        if (err) {
-          res.status(500).json({
-            message: ERROR_FETCH_PRODUCER,
-            error: err.message,
-          });
-        } else if (!row) {
-          res.status(404).json({
-            message: messageNotFound("Producer", id),
-          });
-        } else {
-          res.status(200).json(row);
-        }
-      });
+      const producer = await ProducersService.getById(id);
+
+      if (!producer) {
+        return res.status(404).json({
+          message: messageNotFound("Producer", id),
+        });
+      }
+
+      res.status(200).json(producer);
     } catch (err) {
       res.status(500).json({
-        error: ERROR_FETCH_PRODUCERS,
+        error: ERROR_FETCH_PRODUCER,
         message: err.message,
       });
     }
@@ -109,54 +77,19 @@ class ProducerController {
 
   static getIntervals = async (req, res) => {
     try {
-      const query = `
-            WITH producer_wins AS (
-                SELECT 
-                    p.name AS producer,
-                    m.year AS winYear
-                FROM movies m
-                INNER JOIN movies_producers mp ON m.id = mp.movie_id
-                INNER JOIN producers p ON mp.producer_id = p.id
-                WHERE m.winner = 1
-            ),
-            intervals AS (
-                SELECT 
-                    producer,
-                    winYear AS previousWin,
-                    LEAD(winYear) OVER (PARTITION BY producer ORDER BY winYear) AS followingWin,
-                    LEAD(winYear) OVER (PARTITION BY producer ORDER BY winYear) - winYear AS interval
-                FROM producer_wins
-            )
-            SELECT 
-                producer,
-                interval,
-                previousWin,
-                followingWin
-            FROM intervals
-            WHERE interval IS NOT NULL
-            ORDER BY interval;
-        `;
+      const intervals = await ProducersService.getIntervals();
 
-      db.all(query, [], (err, rows) => {
-        if (err) {
-          console.error(err);
-          return res
-            .status(500)
-            .json({ error: ERROR_FETCH_PRODUCER_INTERVALS });
-        }
+      if (intervals.length === 0) {
+        return res.json({ min: [], max: [] });
+      }
 
-        if (rows.length === 0) {
-          return res.json({ min: [], max: [] });
-        }
+      const minInterval = intervals[0].interval;
+      const maxInterval = intervals[intervals.length - 1].interval;
 
-        const minInterval = rows[0].interval;
-        const maxInterval = rows[rows.length - 1].interval;
+      const min = intervals.filter((row) => row.interval === minInterval);
+      const max = intervals.filter((row) => row.interval === maxInterval);
 
-        const min = rows.filter((row) => row.interval === minInterval);
-        const max = rows.filter((row) => row.interval === maxInterval);
-
-        res.json({ min, max });
-      });
+      res.status(200).json({ min, max });
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: ERROR_INTERNAL_SERVER });
@@ -170,14 +103,7 @@ class ProducerController {
     const { name } = req.body;
 
     try {
-      const producer = await new Promise((resolve, reject) => {
-        db.get("SELECT * FROM producers WHERE id = ?", [id], (err, row) => {
-          if (err) {
-            reject(err);
-          }
-          resolve(row);
-        });
-      });
+      const producer = await ProducersService.getById(id);
 
       if (!producer) {
         return res.status(404).json({
@@ -185,39 +111,16 @@ class ProducerController {
         });
       }
 
-      const nameProducer = await new Promise((resolve, reject) => {
-        db.get(
-          "SELECT * FROM producers WHERE name = ? and id <> ?",
-          [name, id],
-          (err, row) => {
-            if (err) {
-              reject(err);
-            }
-            resolve(row);
-          }
-        );
-      });
+      const nameConflict = await ProducersService.getByName(name, id);
 
-      if (nameProducer) {
+      if (nameConflict) {
         return res.status(400).json({
           message: messageRegisterAlreadyExists("Producer", name),
         });
       }
 
-      await new Promise((resolve, reject) => {
-        db.run(
-          `UPDATE producers SET name = ? WHERE id = ?`,
-          [name, id],
-          function (err) {
-            if (err) {
-              reject(err);
-            }
-            resolve();
-          }
-        );
-      });
-
-      res.json({ id });
+      const success = await ProducersService.update(id, { name });
+      res.status(200).json({ success });
     } catch (err) {
       console.error(err);
       res
@@ -232,31 +135,15 @@ class ProducerController {
     const { id } = req.params;
 
     try {
-      const producer = await new Promise((resolve, reject) => {
-        db.get("SELECT * FROM producers WHERE id = ?", [id], (err, row) => {
-          if (err) {
-            reject(err);
-          }
-          resolve(row);
-        });
-      });
+      const deleted = await ProducersService.delete(id);
 
-      if (!producer) {
+      if (!deleted) {
         return res.status(404).json({
           message: messageNotFound("Producer", id),
         });
       }
 
-      await new Promise((resolve, reject) => {
-        db.run(`DELETE FROM producers WHERE id = ?`, [id], function (err) {
-          if (err) {
-            reject(err);
-          }
-          resolve();
-        });
-      });
-
-      res.json({ id });
+      res.status(200).json({ id });
     } catch (err) {
       console.error(err);
       res

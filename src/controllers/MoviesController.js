@@ -1,11 +1,4 @@
 const {
-  createMovie,
-  getAllMovies,
-  getMovieById,
-  updateMovie,
-  deleteMovie,
-} = require("../services/MoviesService");
-const {
   ERROR_CREATE_MOVIE,
   ERROR_FETCH_MOVIES,
   ERROR_FETCH_MOVIE,
@@ -14,10 +7,11 @@ const {
   messageNotFound,
   messageFieldsRequired,
 } = require("../includes/Messages");
+const MoviesService = require("../services/MoviesService");
 
 class MovieController {
   //#region CREATE
-  static async create(req, res) {
+  static create = async (req, res) => {
     const { year, title, studios, winner } = req.body;
 
     if (!year || !title || !studios || winner === undefined) {
@@ -33,19 +27,24 @@ class MovieController {
     }
 
     try {
-      const movieId = await createMovie({ year, title, studios, winner });
-      res.status(201).json({ id: movieId });
+      const id = await MoviesService.create({
+        year,
+        title,
+        studios,
+        winner,
+      });
+      res.status(201).json({ id });
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: ERROR_CREATE_MOVIE, message: err.message });
     }
-  }
+  };
   //#endregion
 
   //#region READ
-  static async getAll(req, res) {
+  static getAll = async (req, res) => {
     try {
-      const movies = await getAllMovies();
+      const movies = await MoviesService.getAll();
       res.status(200).json(movies);
     } catch (err) {
       res.status(500).json({
@@ -53,13 +52,13 @@ class MovieController {
         error: err.message,
       });
     }
-  }
+  };
 
-  static async getById(req, res) {
+  static getById = async (req, res) => {
     const { id } = req.params;
 
     try {
-      const movie = await getMovieById(id);
+      const movie = await MoviesService.getById(id);
 
       if (!movie) {
         return res.status(404).json({
@@ -74,16 +73,21 @@ class MovieController {
         message: err.message,
       });
     }
-  }
+  };
   //#endregion
 
   //#region UPDATE
-  static async update(req, res) {
+  static update = async (req, res) => {
     const { id } = req.params;
     const { year, title, studios, winner } = req.body;
 
     try {
-      const updated = await updateMovie(id, { year, title, studios, winner });
+      const updated = await MoviesService.update(id, {
+        year,
+        title,
+        studios,
+        winner,
+      });
 
       if (!updated) {
         return res.status(404).json({
@@ -98,15 +102,15 @@ class MovieController {
         error: err.message,
       });
     }
-  }
+  };
   //#endregion
 
   //#region DELETE
-  static async delete(req, res) {
+  static delete = async (req, res) => {
     const { id } = req.params;
 
     try {
-      const deleted = await deleteMovie(id);
+      const deleted = await MoviesService.delete(id);
 
       if (!deleted) {
         return res.status(404).json({
@@ -121,7 +125,7 @@ class MovieController {
         error: err.message,
       });
     }
-  }
+  };
   //#endregion
 }
 

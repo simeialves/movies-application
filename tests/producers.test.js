@@ -8,15 +8,41 @@ describe("Testes de Integração - Producers", () => {
     await populateDatabase(moviesData);
   });
 
-  it("Deverá retornar todos os produtores e verificar se o arquivo JSON está de acordo com o esperado", async () => {
-    const response = await request(app).get("/api/producers");
+  it("Deverá verificar se o retorno da API está de acordo com o esperado com os dados do arquivo padrão", async () => {
+    const response = await request(app).get("/api/producers/intervals");
     expect(response.status).toBe(200);
-    expect(response.body).toBeInstanceOf(Array);
+    expect(response.body).toBeInstanceOf(Object);
 
-    const producer = response.body[0];
+    const min = [
+      {
+        producer: "Joel Silver",
+        interval: 1,
+        previousWin: 1990,
+        followingWin: 1991,
+      },
+    ];
 
-    expect(producer).toHaveProperty("id");
-    expect(producer).toHaveProperty("name");
+    const max = [
+      {
+        producer: "Matthew Vaughn",
+        interval: 13,
+        previousWin: 2002,
+        followingWin: 2015,
+      },
+    ];
+
+    const minResponse = response.body.min[0];
+    const maxResponse = response.body.max[0];
+
+    expect(minResponse.producer).toBe(min[0].producer);
+    expect(minResponse.interval).toBe(min[0].interval);
+    expect(minResponse.previousWin).toBe(min[0].previousWin);
+    expect(minResponse.followingWin).toBe(min[0].followingWin);
+
+    expect(maxResponse.producer).toBe(max[0].producer);
+    expect(maxResponse.interval).toBe(max[0].interval);
+    expect(maxResponse.previousWin).toBe(max[0].previousWin);
+    expect(maxResponse.followingWin).toBe(max[0].followingWin);
   });
 
   it("Deverá criar um novo produtor a partir do método POST", async () => {
