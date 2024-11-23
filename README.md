@@ -34,11 +34,12 @@ Esta é uma aplicação para gerenciar filmes e produtores, incluindo a relaçã
 
 ## Estrutura de Diretórios
 
-- **`config/`**: Contém a configuração do banco de dados.
-- **`controllers/`**: Contém os controladores para filmes, produtores e relações entre eles.
-- **`includes/`**: Contém constantes e mensagens utilizadas na aplicação.
-- **`routes/`**: Contém as rotas da API.
+- **`src/config/`**: Contém a configuração do banco de dados.
+- **`src/controllers/`**: Contém os controladores para filmes, produtores e relações entre eles.
 - **`src/data/`**: Contém os arquivos de dados para popular o banco de dados temporário.
+- **`src/includes/`**: Contém constantes e mensagens utilizadas na aplicação.
+- **`src/routes/`**: Contém as rotas da API.
+- **`src/services/`**: Contém a lógica de negócio.
 - **`tests/`**: Contém os testes de integração.
 
 ## Endpoints da API
